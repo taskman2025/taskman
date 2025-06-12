@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=TaskMan
+Exec=taskman
+Icon=taskman
+Type=Application
+Categories=Utility;System;
