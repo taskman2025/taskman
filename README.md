@@ -4,6 +4,10 @@ A small task manager utility.
 
 Currently supporting Linux. More platforms coming soon.
 
+## Whitepaper
+
+<https://docs.google.com/document/d/1TSnL79mfsSGbZaCwDglRrjPapDd_E9oOvBxwpEBqUKY/edit?usp=sharing>
+
 ## Prerequisites
 
 On Ubuntu and derivaties e.g. Mint:
