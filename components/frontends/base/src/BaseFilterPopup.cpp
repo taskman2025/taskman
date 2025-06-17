@@ -23,7 +23,7 @@ void BaseFilterPopup::createFilterSection(ProcessFilterType const& type) {
             QHBoxLayout* layout = new QHBoxLayout;
             {
                 QLabel* captionLabel = new QLabel(type.name, filterSection);
-                layout->addWidget(captionLabel);
+                layout->addWidget(captionLabel, 10);
             }
             layout->addStretch();
             {
@@ -35,7 +35,7 @@ void BaseFilterPopup::createFilterSection(ProcessFilterType const& type) {
                     delete filterSectionData;
                 });
                 filterSection->setAttribute(Qt::WA_DeleteOnClose);
-                layout->addWidget(closeButton);
+                layout->addWidget(closeButton, 0);
             }
             captionPanel->setLayout(layout);
         }
@@ -55,10 +55,11 @@ void BaseFilterPopup::createFilterSection(ProcessFilterType const& type) {
             case FilterParamType::TEXT: {
                 (*filterSectionData)[i] = "";
                 QLineEdit* input = new QLineEdit(filterSection);
-                connect(input, &QLineEdit::textChanged, this, [filterSectionData, i](QString const& newText) {
+                connect(input, &QLineEdit::textChanged, this, [this, filterSectionData, i](QString const& newText) {
                     (*filterSectionData)[i] = newText;
                 });
                 layout->addWidget(input);
+                adjustSize();
             } break;
 
             case FilterParamType::PROCESS_FIELD: {
@@ -68,7 +69,7 @@ void BaseFilterPopup::createFilterSection(ProcessFilterType const& type) {
                 for (ProcessField const& field : m_platformProfile.getProcessFields()) {
                     dropdown->addItem(field.name, QVariant::fromValue(field.mask));
                 }
-                connect(dropdown, &QComboBox::currentIndexChanged, this, [filterSectionData, dropdown, i](int index) {
+                connect(dropdown, &QComboBox::currentIndexChanged, this, [this, filterSectionData, dropdown, i](int index) {
                     QVariant data = dropdown->itemData(index);
                     if (!data.isValid()) {
                         qDebug() << "No valid option selected.";
@@ -77,16 +78,19 @@ void BaseFilterPopup::createFilterSection(ProcessFilterType const& type) {
                     (*filterSectionData)[i] = data;
                 });
                 layout->addWidget(dropdown);
+                adjustSize();
             } break;
 
             case FilterParamType::EXISTING_FILE_PATH: {
                 // TODO: different logic for remote connections!
                 (*filterSectionData)[i] = "";
                 FileInputWidget* fileInput = new FileInputWidget(filterSection, this);
-                connect(fileInput, &FileInputWidget::filePathChanged, this, [filterSectionData, i](QString filePath) {
+                connect(fileInput, &FileInputWidget::filePathChanged, this, [this, filterSectionData, i](QString filePath) {
                     (*filterSectionData)[i] = filePath;
                 });
                 layout->addWidget(fileInput);
+                adjustSize();
+
             } break;
 
             default:
@@ -106,6 +110,8 @@ BaseFilterPopup::BaseFilterPopup(IPlatformProfile const& platformProfile, QWidge
 
 void BaseFilterPopup::initialize() {
     hide();
+    setWindowFlags(Qt::Window);
+    setWindowTitle("Filters");
 
     QMenu* filterMenu = new QMenu(this);
 
@@ -118,7 +124,7 @@ void BaseFilterPopup::initialize() {
         );
     }
 
-    QPushButton* createFilterButton = new QPushButton("Add filer", this);
+    QPushButton* createFilterButton = new QPushButton("Add filter", this);
     connect(createFilterButton, &QPushButton::clicked, this, [filterMenu, createFilterButton]() {
         QPoint pos = createFilterButton->mapToGlobal(QPoint(0, createFilterButton->height()));
         filterMenu->exec(pos); // Show menu just below the button
@@ -151,7 +157,6 @@ void BaseFilterPopup::initialize() {
     }
 
     setLayout(layout);
-    resize(400, 300);
 }
 
 void BaseFilterPopup::onApplyButtonClicked() {

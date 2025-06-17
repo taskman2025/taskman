@@ -3,6 +3,7 @@
 #include <QVBoxLayout>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QCoreApplication>
 
 BaseConnectionTab* createLocalConnectionTab(QWidget* parent);
 
@@ -15,7 +16,7 @@ BaseConnectionTab* createLocalConnectionTab(QWidget* parent);
 BaseConnectionTab* createLocalConnectionTab(QWidget* parent) {
     IConnection* connection = new LocalPosixConnection();
     BaseProcessItemModel* model = new PosixProcessItemModel(connection);
-    return new BaseConnectionTab(model, parent);
+    return new BaseConnectionTab(model, parent, parent);
 }
 
 #else

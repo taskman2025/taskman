@@ -51,6 +51,7 @@ public:
 
     ////////////////////////////////////
 public slots:
+    void initialize();
     void initiateConnection();
 signals:
     void initialized();
@@ -163,8 +164,6 @@ private:
 
     timestamp_t m_lastProcessTreeTimestamp;
 
-    bool m_initialized;
-    bool m_connected;
     bool m_filtering;
 };
 

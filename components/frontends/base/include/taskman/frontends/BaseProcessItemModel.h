@@ -35,6 +35,10 @@ public:
 
 public slots:
     void initialize();
+    void onReplyProcessFiltering(
+        QMap<filter_type_id_t, QPair<FilterError, QString>> errors,
+        QSet<proc_id_t> filteredPidSet
+    );
 
 protected:
     /**
@@ -54,6 +58,9 @@ private:
 
     proc_id_t getImaginaryRootProcId() const;
     proc_id_t m__imaginaryRootProcId;
+
+    QSet<proc_id_t> m_filteredPidSet;
+    bool m_filtering;
 
     /**
      * Translate/migrate content of rootBefore to be like that of rootAfter

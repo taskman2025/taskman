@@ -2,13 +2,15 @@
 #define IBackend_INCLUDED
 
 #include "taskman/backends/ProcessTree.h"
+#include "taskman/backends/ProcessTreeBuilder.h"
 #include "taskman/backends/SystemInformation.h"
 #include "taskman/common/ThreadsafeConstReadProxy.h"
 #include "taskman/common/types.h"
 #include "taskman/platform_runtimes/IPlatformRuntime.h"
 #include <QHash>
+#include <QMutex>
 #include <QObject>
-#include <QtConcurrent>
+#include <QThread>
 
 enum class ResponseErrorCode {
     NONE,
@@ -40,7 +42,8 @@ class IBackend : public QObject {
 public:
     IBackend(IPlatformRuntime& platformRuntime);
     IPlatformRuntime& getPlatformRuntime() const;
-    virtual ~IBackend() = 0;
+    virtual ~IBackend();
+    void initialize();
 
 public slots:
     void requestSystemInformation(backend_request_id_t id);
@@ -106,7 +109,8 @@ protected:
 private:
     ThreadsafeConstReadProxy<ProcessTree> m_savedProcessTree;
     IPlatformRuntime& m_platformRuntime;
-    QFuture<void> m_updateTreeFuture;
+    ProcessTreeBuilder* m_procTreeBuilder;
+    QThread m_treeBuildingThread;
 
     void doReplyProcessTree(
         backend_request_id_t id,
@@ -123,8 +127,11 @@ private:
         ResponseError error,
         ActionResult result
     );
-    QFuture<void> buildTree();
-    static QFuture<ProcessTree> doBuildProcessTree(IPlatformRuntime& platformRuntime);
+
+signals:
+    void buildTreeNow();
+private slots:
+    void onTreeBuilt(ThreadsafeSharedConstPointer<ProcessTree> tree);
 };
 
 #endif // IBackend_INCLUDED

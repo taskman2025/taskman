@@ -32,6 +32,13 @@ bool BaseSortFilterProxyModel::filterAcceptsRow(
     ThreadsafeSharedConstPointer<QSet<proc_id_t>> filteredPidSetPtr{
         m_filteredPidSetProxy.get()
     };
+    if (filteredPidSetPtr.get() == nullptr) {
+        return true;
+    }
+    if (filteredPidSetPtr->contains(pid)) {
+        return true;
+    }
+
     // reduce locking overhead: passing raw pointer
     // to the following synchronous function - at the end,
     // that function returns, then filterAcceptRows()

@@ -18,12 +18,12 @@ public:
     /**
      * Instances of this class take ownership of the connection handle.
      */
-    BaseConnectionTab(IConnection* connection, QWidget* parent = nullptr);
+    BaseConnectionTab(IConnection* connection, QWidget* parent, QWidget* mainWindow);
 
     /**
      * Instances of this class take ownership of the process item model pointer.
      */
-    BaseConnectionTab(BaseProcessItemModel* model, QWidget* parent = nullptr);
+    BaseConnectionTab(BaseProcessItemModel* model, QWidget* parent, QWidget* mainWindow);
 
     virtual ~BaseConnectionTab();
     IConnection* getConnection() const;
@@ -55,6 +55,8 @@ private:
     QTreeView* m_treeView;
     QTextEdit* m_logArea;
     QStatusBar* m_statusBar;
+
+    QWidget* const m_mainWindow;
 
     SystemInformation m_systemInformation;
     proc_count_t m_numProcs;

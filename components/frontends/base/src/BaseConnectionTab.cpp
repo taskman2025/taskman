@@ -8,18 +8,20 @@
 #include <QTreeView>
 #include <QVBoxLayout>
 
-BaseConnectionTab::BaseConnectionTab(IConnection* connection, QWidget* parent)
+BaseConnectionTab::BaseConnectionTab(IConnection* connection, QWidget* parent, QWidget* mainWindow)
     : QWidget(parent),
       m_connection{connection},
       m_model{new BaseProcessItemModel(connection, this)},
-      m_treeView{nullptr} {
+      m_treeView{nullptr},
+      m_mainWindow{mainWindow} {
 }
 
-BaseConnectionTab::BaseConnectionTab(BaseProcessItemModel* model, QWidget* parent)
+BaseConnectionTab::BaseConnectionTab(BaseProcessItemModel* model, QWidget* parent, QWidget* mainWindow)
     : QWidget(parent),
       m_connection{model->getConnection()},
       m_model{model},
-      m_treeView{nullptr} {
+      m_treeView{nullptr},
+      m_mainWindow{mainWindow} {
 }
 
 BaseConnectionTab::~BaseConnectionTab() {
@@ -36,6 +38,8 @@ BaseProcessItemModel* BaseConnectionTab::getProcessItemModel() const {
 }
 
 void BaseConnectionTab::buildUi() {
+    m_filterPopup = createFilterPopup(m_mainWindow);
+
     m_treeView = new QTreeView(this);
     m_treeView->setSortingEnabled(true);
     m_treeView->setColumnWidth(0, 500);
@@ -74,6 +78,15 @@ void BaseConnectionTab::buildUi() {
                             });
                             layout->addWidget(button);
                         }
+
+                        {
+                            QPushButton* button = new QPushButton("Filter", this);
+                            connect(button, &QPushButton::clicked, this, [this]() {
+                                qDebug() << "showing";
+                                m_filterPopup->show();
+                            });
+                            layout->addWidget(button);
+                        }
                         actionsContainer->setLayout(layout);
                     }
                     layout->addWidget(actionsContainer);
@@ -89,8 +102,7 @@ void BaseConnectionTab::buildUi() {
     }
     layout->addWidget(m_statusBar);
     setLayout(layout);
-
-    m_filterPopup = createFilterPopup(this);
+    m_filterPopup->initialize();
 }
 
 void BaseConnectionTab::initialize() {
@@ -135,13 +147,15 @@ void BaseConnectionTab::initialize() {
     connect(m_connection, &IConnection::replyProcessAction, this, &BaseConnectionTab::onReplyProcessAction);
     connect(m_connection, &IConnection::replyProcessActionError, this, &BaseConnectionTab::onReplyProcessActionError);
     connect(m_connection, &IConnection::replyProcessFiltering, this, &BaseConnectionTab::onReplyProcessFiltering);
+    connect(m_connection, &IConnection::replyProcessFiltering, m_model, &BaseProcessItemModel::onReplyProcessFiltering);
     connect(m_connection, &IConnection::replyProcessFilteringError, this, &BaseConnectionTab::onReplyProcessFilteringError);
     connect(m_connection, &IConnection::refilterProcessesNow, this, &BaseConnectionTab::onRefilterProcessNow);
     connect(this, &BaseConnectionTab::requestProcessFiltering, m_connection, &IConnection::requestProcessFiltering);
     connect(this, &BaseConnectionTab::requestProcessAction, m_connection, &IConnection::requestProcessAction);
+    connect(m_filterPopup, &BaseFilterPopup::updateFilters, this, &BaseConnectionTab::applyFilters);
 
     m_model->initialize();
-    m_connection->initiateConnection();
+    m_connection->initialize();
 }
 
 #define MAX_CHARS_IN_LOG 10'000
@@ -151,7 +165,7 @@ void BaseConnectionTab::appendLog(QString const& message, QColor const& color) {
 
     QTextCursor cursor = m_logArea->textCursor();
     cursor.movePosition(QTextCursor::End);
-    cursor.insertText(message + '\n', format);
+    cursor.insertText(QDateTime::currentDateTime().toString("dd MMM yyyy - HH:mm:ss -- ") + message + '\n', format);
     m_logArea->setTextCursor(cursor);
 
     if (m_logArea->toPlainText().length() > MAX_CHARS_IN_LOG) {
@@ -212,6 +226,7 @@ void BaseConnectionTab::performActionOnTheCurrentlySelectedProcess(process_actio
 
 void BaseConnectionTab::onReplyProcessTree(ThreadsafeSharedConstPointer<ProcessTree> newTree) {
     if (newTree.get() == nullptr) {
+        // appendLog("Tree unchanged", Qt::yellow);
         return;
     }
     m_numProcs = newTree->totalNumProcs;
@@ -241,6 +256,7 @@ void BaseConnectionTab::onReplyProcessFiltering(
     QMap<filter_type_id_t, QPair<FilterError, QString>> errors,
     QSet<proc_id_t> filteredPidSet
 ) {
+    qDebug() << "Here" << filteredPidSet.size();
     m_proxyModel->updateFilters(filteredPidSet);
 }
 void BaseConnectionTab::onReplyProcessFilteringError(ConnectionError e) {

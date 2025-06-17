@@ -3,6 +3,10 @@
 
 LocalPosixBackend& LocalPosixBackend::instance() {
     static LocalPosixBackend inst;
+    static bool initialized;
+    if (!initialized) {
+        inst.initialize();
+    }
     return inst;
 }
 

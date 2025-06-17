@@ -3,7 +3,7 @@
 ILocalBackend::~ILocalBackend() = default;
 
 qint64 ILocalBackend::getProcessTreeUpdateIntervalInSeconds() const {
-    return 2;
+    return 1;
 }
 
 qint64 ILocalBackend::getSystemInformationUpdateIntervalInSeconds() const {

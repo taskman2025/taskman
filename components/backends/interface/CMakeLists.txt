@@ -13,6 +13,7 @@ add_library(backends_interface STATIC
     "include/taskman/backends/IBackend.h"             "src/IBackend.cpp"
     "include/taskman/backends/ProcessData.h"          "src/ProcessData.cpp"
     "include/taskman/backends/ProcessTree.h"
+    "include/taskman/backends/ProcessTreeBuilder.h"   "src/ProcessTreeBuilder.cpp"
     "include/taskman/backends/SystemInformation.h"
 )
 

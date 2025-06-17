@@ -1,4 +1,5 @@
 #include "taskman/frontends/BaseProcessItemModel.h"
+#include <QColor>
 
 BaseProcessItemModel::BaseProcessItemModel(
     IConnection* connection,
@@ -9,6 +10,8 @@ BaseProcessItemModel::BaseProcessItemModel(
       m_pidToProcessDataMap{},
       m_numProcs{0},
       m__imaginaryRootProcId{m_connection->getPlatformProfile().getImaginaryRootProcId()},
+      m_filteredPidSet{},
+      m_filtering{false},
       QAbstractItemModel(parent) {
 }
 
@@ -137,6 +140,10 @@ QVariant BaseProcessItemModel::data(QModelIndex const& index, int role) const {
         return m_fields[columnNumber].description;
     } else if (role == Qt::UserRole) {
         return QVariant::fromValue(processData);
+    } else if (role == Qt::BackgroundRole && m_filtering) {
+        if (m_filteredPidSet.contains(pid)) {
+            return QColor(255, 192, 203);
+        }
     }
     // TODO: Pink background for filtered rows
     return customData(index, role, pid, processData);
@@ -164,10 +171,7 @@ void BaseProcessItemModel::removeAllChildrenOf(QHash<proc_id_t, ProcessData>& ma
         }
     }
 
-    for (proc_id_t pid : root.getChildrenProcIds()) {
-    }
     beginRemoveRows(pidToIndex(root.getPID()), 0, N - 1);
-
     /**
      * Exhaustive removal of unused PIDs in the map
      * is not recommended since they might get reused
@@ -178,7 +182,6 @@ void BaseProcessItemModel::removeAllChildrenOf(QHash<proc_id_t, ProcessData>& ma
         map.remove(childPid);
     }
 #endif // EXHAUSTIVE_REMOVAL
-
     root.clearChildren();
     endRemoveRows();
 }
@@ -189,12 +192,12 @@ void BaseProcessItemModel::addAllAsChildrenOf(
     QHash<proc_id_t, ProcessData> const& mapAfter,
     QSet<proc_id_t> const& newChildProcIds
 ) {
-    if (newChildProcIds.isEmpty()) {
+    int const N = newChildProcIds.size();
+    if (N == 0) {
         return;
     }
 
-    int base = root.getChildrenProcIds().size();
-    int N = newChildProcIds.size();
+    int const base = root.getChildrenProcIds().size();
     if (N > 0) {
         beginInsertRows(pidToIndex(root.getPID()), base, base + N - 1);
         for (proc_id_t pid : newChildProcIds) {
@@ -232,7 +235,7 @@ void BaseProcessItemModel::diffAndMigrate(
         ProcessData const& rowAfter = mapAfter[pid];
         if (rowAfter.getPPID() != rowBefore.getPPID()) {
             it = pidsToModify.erase(it);
-            pidsToRemove.remove(pid);
+            pidsToRemove.insert(pid);
             pidsToAdd.insert(pid);
         } else {
             ++it;
@@ -266,7 +269,7 @@ void BaseProcessItemModel::diffAndMigrate(
 
 void BaseProcessItemModel::rebuildTreeOnUI(ThreadsafeSharedConstPointer<ProcessTree> newTree) {
     if (newTree.get() == nullptr) {
-        // unchanged
+        qDebug() << "tree not changed";
         return;
     }
 
@@ -309,4 +312,20 @@ QHash<proc_id_t, ProcessData> BaseProcessItemModel::snapshot() const {
     QHash<proc_id_t, ProcessData> map{m_pidToProcessDataMap};
     map.detach();
     return map;
+}
+
+void BaseProcessItemModel::onReplyProcessFiltering(
+    QMap<filter_type_id_t, QPair<FilterError, QString>> errors,
+    QSet<proc_id_t> filteredPidSet
+) {
+    m_filtering = true;
+    m_filteredPidSet = filteredPidSet;
+    m_filteredPidSet.detach();
+
+    for (proc_id_t pid : m_filteredPidSet) {
+        QModelIndex index = pidToIndex(pid);
+        if (index.isValid()) {
+            emit dataChanged(index, index, {Qt::BackgroundRole});
+        }
+    }
 }
