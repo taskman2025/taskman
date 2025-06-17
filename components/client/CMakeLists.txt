@@ -12,7 +12,7 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Concurrent)
 
 set(PROJECT_SOURCES
         "src/main.cpp"
-        "include/taskman/client/MainWindow.h"                 "src/MainWindow.cpp"
+        "include/taskman/client/MainWindow.h"           "src/MainWindow.cpp"
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
@@ -46,9 +46,12 @@ target_link_libraries(taskman PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
 ##################################
 ####### taskman libraries ########
 
+target_link_libraries(taskman PUBLIC frontends_base)
+
 if (UNIX AND NOT APPLE)
     message(STATUS "Configuring for Linux/POSIX")
-    target_link_libraries(taskman PUBLIC local_posix)
+    target_link_libraries(taskman PUBLIC local_posix_connection)
+    target_link_libraries(taskman PUBLIC posix_frontend)
 elseif(APPLE)
     message(STATUS "Configuring for macOS")
     message(FATAL_ERROR "This platform will be supported soon: ${CMAKE_SYSTEM_NAME}")
@@ -101,10 +104,10 @@ set(CPACK_PACKAGE_NAME "taskman")
 set(CPACK_PACKAGE_VENDOR "Your Name or Org")
 set(CPACK_PACKAGE_CONTACT "you@example.com")
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "TaskMan - Cross-platform process monitor")
-set(CPACK_PACKAGE_VERSION "1.0.0")
+set(CPACK_PACKAGE_VERSION "1.0.1")
 set(CPACK_PACKAGE_VERSION_MAJOR "1")
 set(CPACK_PACKAGE_VERSION_MINOR "0")
-set(CPACK_PACKAGE_VERSION_PATCH "0")
+set(CPACK_PACKAGE_VERSION_PATCH "1")
 
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Your Name")  # Required for .deb
 set(CPACK_RPM_PACKAGE_LICENSE "MIT")              # Or your license

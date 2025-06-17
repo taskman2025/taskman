@@ -1,18 +1,26 @@
 #include "taskman/client/MainWindow.h"
-#include "taskman/backend/IConnectionTab.h"
-#include "taskman/backend/local_posix/LocalPosixBackend.h"
-#include <QHBoxLayout>
-#include <QKeyEvent>
+#include "taskman/frontends/BaseConnectionTab.h"
+#include <QVBoxLayout>
 #include <QMenuBar>
 #include <QMessageBox>
-#include <QMouseEvent>
-#include <QTabWidget>
-#include <QTreeView>
-#include <QVBoxLayout>
 
-QList<IBackend*> g_backends = {
-    new LocalPosixBackend()
-};
+BaseConnectionTab* createLocalConnectionTab(QWidget* parent);
+
+// TODO: depends on platform
+// TODO: how about BSDs?
+#if defined(__linux__) && !defined(__APPLE__)
+#include "taskman/connections/LocalPosixConnection.h"
+#include "taskman/frontends/PosixProcessItemModel.h"
+
+BaseConnectionTab* createLocalConnectionTab(QWidget* parent) {
+    IConnection* connection = new LocalPosixConnection();
+    BaseProcessItemModel* model = new PosixProcessItemModel(connection);
+    return new BaseConnectionTab(model, parent);
+}
+
+#else
+#error Platform not yet supported
+#endif
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent) {
@@ -26,11 +34,12 @@ void MainWindow::setupClientArea() {
     QWidget* central = new QWidget(this);
     QVBoxLayout* layout = new QVBoxLayout;
 
-    m_connectionTabs = new QTabWidget(this);
-    IConnectionTab* tab1 = g_backends[0]->createConnectionTab();
-    m_connectionTabs->addTab(tab1, "Local");
+    m_connectionTabsContainer = new QTabWidget(this);
+    BaseConnectionTab* tab1 = createLocalConnectionTab(this);
+    tab1->initialize();
+    m_connectionTabsContainer->addTab(tab1, "Local");
 
-    setCentralWidget(m_connectionTabs);
+    setCentralWidget(m_connectionTabsContainer);
     setWindowTitle(QString("taskman (PID = %1)").arg(QCoreApplication::applicationPid()));
     resize(800, 600);
 }
@@ -45,7 +54,7 @@ void MainWindow::setupMenu() {
     connect(exitAction, &QAction::triggered, this, &MainWindow::close);
     connect(aboutAction, &QAction::triggered, this, [this]() {
         QMessageBox::about(this, "About", u8""
-                                          "taskman for Linux, version 0.1\n"
+                                          "taskman for Linux, version 1.0.1\n"
                                           "Copyright (c) 2025 Vũ Tùng Lâm\n"
                                           "Distributed under GPLv3");
     });

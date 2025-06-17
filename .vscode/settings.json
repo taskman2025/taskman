@@ -83,6 +83,11 @@
         "ios": "cpp",
         "qset": "cpp",
         "qtimer": "cpp",
-        "qvboxlayout": "cpp"
+        "qvboxlayout": "cpp",
+        "qlist": "cpp",
+        "qstring": "cpp",
+        "source_location": "cpp",
+        "shared_mutex": "cpp",
+        "__config": "cpp"
     }
 }

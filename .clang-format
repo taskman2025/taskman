@@ -25,3 +25,8 @@ BraceWrapping:
   BeforeElse: false
   SplitEmptyRecord: true
   SplitEmptyNamespace: true
+
+BinPackArguments: false
+AllowBreakBeforeNoParenthesesOperators: true
+BreakBeforeBinaryOperators: All
+PenaltyBreakBinaryOperator: 0

@@ -15,21 +15,22 @@ class FileInputWidget : public QWidget {
     Q_OBJECT
 
 public:
-    FileInputWidget(std::function<void(const QString&)> onFileSelected, QWidget* parent = nullptr);
+    FileInputWidget(QWidget* parent, QWidget* parentForPopup);
+
+signals:
+    void filePathChanged(QString filePath);
 
 public slots:
     void setPlaceholderText(QString text);
 
 private slots:
     void onBrowseClicked();
-
-    void onSubmitClicked();
+    void onFilePathChanged(QString filePath);
 
 private:
     QLineEdit* filePathEdit;
     QPushButton* browseButton;
-    QPushButton* submitButton;
-    std::function<void(const QString&)> callback;
+    QWidget* const m_parentForPopup;
 };
 
 #endif // FileInputWidget_INCLUDED

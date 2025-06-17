@@ -1,0 +1,11 @@
+#ifndef POSIX_PROCESS_FILTER_TYPE_IDS_INCLUDED
+#define POSIX_PROCESS_FILTER_TYPE_IDS_INCLUDED
+
+#include "taskman/common/declaration.h"
+
+class PosixProcessFilterTypeID {
+public:
+    DECLARE_PROCESS_FILTER_TYPE_ID(OPEN_FILE, 1)
+};
+
+#endif // POSIX_PROCESS_FILTER_TYPE_IDS_INCLUDED

@@ -2,9 +2,7 @@
 #define MainWindow_INCLUDED
 
 #include <QMainWindow>
-#include <QLabel>
-#include <QLineEdit>
-#include <QPushButton>
+#include <QTabWidget>
 
 class MainWindow : public QMainWindow
 {
@@ -18,6 +16,6 @@ private:
     void setupClientArea();
     void setupMenu();
 
-    QTabWidget* m_connectionTabs;
+    QTabWidget* m_connectionTabsContainer;
 };
 #endif // MainWindow_INCLUDED

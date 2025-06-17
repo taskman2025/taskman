@@ -6,13 +6,13 @@
 #include <utility>
 
 template<typename T>
-class ThreadsafeConstSharedPointer {
+class ThreadsafeSharedConstPointer {
 public:
     // Default constructor (null pointer)
-    ThreadsafeConstSharedPointer() noexcept : controlBlock(nullptr) {}
+    ThreadsafeSharedConstPointer() noexcept : controlBlock(nullptr) {}
 
     // Constructor from raw pointer (takes ownership)
-    explicit ThreadsafeConstSharedPointer(T const* ptr) {
+    explicit ThreadsafeSharedConstPointer(T const* ptr) {
         if (ptr) {
             controlBlock = new ControlBlock(ptr);
         } else {
@@ -21,18 +21,18 @@ public:
     }
 
     // Copy constructor (increments refcount)
-    ThreadsafeConstSharedPointer(const ThreadsafeConstSharedPointer& other) noexcept {
+    ThreadsafeSharedConstPointer(const ThreadsafeSharedConstPointer& other) noexcept {
         acquire(other.controlBlock);
     }
 
     // Move constructor
-    ThreadsafeConstSharedPointer(ThreadsafeConstSharedPointer&& other) noexcept {
+    ThreadsafeSharedConstPointer(ThreadsafeSharedConstPointer&& other) noexcept {
         controlBlock = other.controlBlock;
         other.controlBlock = nullptr;
     }
 
     // Copy assignment
-    ThreadsafeConstSharedPointer& operator=(const ThreadsafeConstSharedPointer& other) noexcept {
+    ThreadsafeSharedConstPointer& operator=(const ThreadsafeSharedConstPointer& other) noexcept {
         if (this != &other) {
             release();
             acquire(other.controlBlock);
@@ -41,7 +41,7 @@ public:
     }
 
     // Move assignment
-    ThreadsafeConstSharedPointer& operator=(ThreadsafeConstSharedPointer&& other) noexcept {
+    ThreadsafeSharedConstPointer& operator=(ThreadsafeSharedConstPointer&& other) noexcept {
         if (this != &other) {
             release();
             controlBlock = other.controlBlock;
@@ -51,7 +51,7 @@ public:
     }
 
     // Destructor
-    ~ThreadsafeConstSharedPointer() {
+    ~ThreadsafeSharedConstPointer() {
         release();
     }
 

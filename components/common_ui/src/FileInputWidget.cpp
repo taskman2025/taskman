@@ -1,20 +1,18 @@
 #include "taskman/common_ui/FileInputWidget.h"
 
-FileInputWidget::FileInputWidget(std::function<void(const QString&)> onFileSelected, QWidget* parent)
-    : QWidget(parent), callback(std::move(onFileSelected)) {
+FileInputWidget::FileInputWidget(QWidget* parent, QWidget* parentForPopup)
+    : QWidget(parent), m_parentForPopup{parentForPopup} {
     filePathEdit = new QLineEdit(this);
     browseButton = new QPushButton("...", this);
-    submitButton = new QPushButton("Submit", this);
 
     auto hLayout = new QHBoxLayout();
-    hLayout->addWidget(filePathEdit);
-    hLayout->addWidget(browseButton);
-    hLayout->addWidget(submitButton);
+    hLayout->addWidget(filePathEdit, 10);
+    hLayout->addWidget(browseButton, 0);
 
     setLayout(hLayout);
 
     connect(browseButton, &QPushButton::clicked, this, &FileInputWidget::onBrowseClicked);
-    connect(submitButton, &QPushButton::clicked, this, &FileInputWidget::onSubmitClicked);
+    connect(filePathEdit, &QLineEdit::textChanged, this, &FileInputWidget::onFilePathChanged);
 }
 
 void FileInputWidget::setPlaceholderText(QString placeholder) {
@@ -22,20 +20,12 @@ void FileInputWidget::setPlaceholderText(QString placeholder) {
 }
 
 void FileInputWidget::onBrowseClicked() {
-    QString filePath = QFileDialog::getOpenFileName(this, "Select a file");
+    QString filePath = QFileDialog::getOpenFileName(m_parentForPopup, "Select a file");
     if (!filePath.isEmpty()) {
         filePathEdit->setText(filePath);
     }
 }
 
-void FileInputWidget::onSubmitClicked() {
-    QString path = filePathEdit->text();
-    if (!path.isEmpty()) {
-        QFileInfo info(path);
-        if (!info.exists() || !info.isFile()) {
-            QMessageBox::warning(this, "Invalid File", "The selected file does not exist.");
-            return;
-        }
-    }
-    callback(path);
+void FileInputWidget::onFilePathChanged(QString filePath) {
+    emit filePathChanged(filePath);
 }

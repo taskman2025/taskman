@@ -1,19 +1,11 @@
-#include "taskman/backend/local_posix/LocalPosixBackend.h"
-#include "taskman/backend/local_posix/PosixProcessItemModel.h"
-#include "taskman/backend/local_posix/LocalPosixConnectionTab.h"
+#include "taskman/backends/LocalPosixBackend.h"
+#include "taskman/platform_runtimes/PosixPlatformRuntime.h"
 
-LocalPosixBackend::LocalPosixBackend() {
-    m_platform.reset(new PosixPlatform());
+LocalPosixBackend& LocalPosixBackend::instance() {
+    static LocalPosixBackend inst;
+    return inst;
 }
 
-IProcessItemModel* LocalPosixBackend::createProcessItemModel() {
-    return new PosixProcessItemModel(*m_platform);
-}
+LocalPosixBackend::LocalPosixBackend() : ILocalBackend(PosixPlatformRuntime::instance()) {}
 
-QSharedPointer<IPlatform> LocalPosixBackend::getPlatform() {
-    return m_platform;
-}
-
-IConnectionTab* LocalPosixBackend::createConnectionTab() {
-    return new LocalPosixConnectionTab(this);
-}
+LocalPosixBackend::~LocalPosixBackend() = default;
