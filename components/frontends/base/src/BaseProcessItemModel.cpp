@@ -139,7 +139,7 @@ QVariant BaseProcessItemModel::data(QModelIndex const& index, int role) const {
         }
         return m_fields[columnNumber].description;
     } else if (role == Qt::UserRole) {
-        return QVariant::fromValue(processData);
+        return QVariant::fromValue(pid);
     } else if (role == Qt::BackgroundRole && m_filtering) {
         if (m_filteredPidSet.contains(pid)) {
             return QColor(255, 192, 203);

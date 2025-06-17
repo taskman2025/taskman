@@ -186,27 +186,29 @@ BaseSortFilterProxyModel* BaseConnectionTab::createProxyModel(QObject* parent) {
 }
 
 void BaseConnectionTab::performActionOnTheCurrentlySelectedProcess(process_action_id_t actionId) {
-    QModelIndex index = m_treeView->selectionModel()->currentIndex();
+    QModelIndex index = m_treeView->currentIndex();
     if (!index.isValid()) {
         return;
     }
+    proc_id_t pid = index.data(Qt::UserRole).value<proc_id_t>();
 
-    pid_t pid = BaseProcessItemModel::anyIndexToPid(
-        index,
-        m_connection->getPlatformProfile().getImaginaryRootProcId()
-    );
+    // pid_t pid = BaseProcessItemModel::anyIndexToPid(
+    //     index,
+    //     m_connection->getPlatformProfile().getImaginaryRootProcId()
+    // );
 
     for (ProcessAction const& action : m_connection->getPlatformProfile().getProcessActions()) {
         if (action.id == actionId) {
+
             if (!action.confirmationMessage.isEmpty()) {
                 QString confirmText = action.confirmationMessage;
                 if (!action.confirmationMessageArguments.isEmpty()) {
-                    QVariant procRawData = m_model->data(index, Qt::UserRole);
-                    if (!procRawData.isValid() || !procRawData.canConvert<ProcessData>()) {
-                        qWarning() << "proc raw data is invalid";
+                    auto const map = m_model->snapshot();
+                    if (!map.contains(pid)) {
+                        qWarning() << "not contains" << pid;
                         return;
                     }
-                    ProcessData data = procRawData.value<ProcessData>();
+                    ProcessData data = map.value(pid);
                     for (field_mask_t const fieldArg : action.confirmationMessageArguments) {
                         confirmText = confirmText.arg(
                             data.getFieldValue(fieldArg).toString()
