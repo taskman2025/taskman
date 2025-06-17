@@ -1,7 +1,7 @@
 #ifndef DefaultProcessDataStruct_INCLUDED
 #define DefaultProcessDataStruct_INCLUDED
 
-#include "taskman/platform/IPlatform.h"
+#include "taskman/common/types.h"
 #include <QList>
 #include <QHash>
 #include <QVariant>
@@ -16,14 +16,8 @@ private:
 public:
     ProcessData() = default;
 
-    ProcessData& operator=(ProcessData const& other) {
-        pid = other.pid;
-        ppid = other.ppid;
-        m_childrenProcIds = other.m_childrenProcIds;
-        m_childrenProcIdSet = QSet<proc_id_t>(m_childrenProcIds.begin(), m_childrenProcIds.end());
-        m_data = other.m_data;
-        return *this;
-    }
+    ProcessData& operator=(ProcessData const& other);
+    void update(ProcessData const& other);
 
     proc_id_t getPID() const { return pid; }
     proc_id_t getPPID() const { return ppid; }

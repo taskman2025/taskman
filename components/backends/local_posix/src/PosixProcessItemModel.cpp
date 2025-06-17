@@ -21,6 +21,7 @@ void PosixProcessItemModel::validateIds(proc_id_t& pid, proc_id_t& ppid, bool& o
     if (pid <= 0 || ppid < 0) {
         qWarning() << "erroneous or stale pid" << pid << "; ppid" << ppid << "; aborting";
         ok = false;
+        return;
     }
     if (ppid == 0) {
         ppid = getImaginaryRootProcId();

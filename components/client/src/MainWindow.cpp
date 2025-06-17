@@ -45,7 +45,7 @@ void MainWindow::setupMenu() {
     connect(exitAction, &QAction::triggered, this, &MainWindow::close);
     connect(aboutAction, &QAction::triggered, this, [this]() {
         QMessageBox::about(this, "About", u8""
-                                          "taskman for Linux, version 0.1\n"
+                                          "taskman for Linux, version 1.0.1\n"
                                           "Copyright (c) 2025 Vũ Tùng Lâm\n"
                                           "Distributed under GPLv3");
     });

@@ -82,7 +82,7 @@ QModelIndex IProcessItemModel::parent(QModelIndex const& childIndex) const {
         return QModelIndex{};
 
     proc_id_t childPid = indexToPid(childIndex);
-    if (childPid == getImaginaryRootProcId() || !m_pidToProcessDataMap.contains(childPid)) {
+    if (!m_pidToProcessDataMap.contains(childPid)) {
         return QModelIndex{};
     }
 
@@ -158,33 +158,20 @@ void IProcessItemModel::setFields(QList<ProcessField> const& fields) {
 }
 
 void IProcessItemModel::removeAllChildrenOf(QHash<proc_id_t, ProcessData>& map, ProcessData& root) {
-    if (root.getChildrenProcIds().isEmpty())
+    int const N = root.getChildrenProcIds().size();
+    if (N == 0) {
         return;
+    }
 
-    bool allChildrenAreNowLeaf = true;
-    int N = 0;
-    for (;;) {
-        N = root.getChildrenProcIds().size();
-        for (proc_id_t childPid : root.getChildrenProcIds()) {
-            if (!map.contains(childPid)) {
-                N -= 1;
-                continue;
-            }
-            ProcessData& childNode = map[childPid];
-            if (!childNode.getChildrenProcIds().isEmpty()) {
-                allChildrenAreNowLeaf = false;
-                removeAllChildrenOf(map, childNode);
-            }
-        }
-        if (allChildrenAreNowLeaf || N <= 0) {
-            break;
+    for (proc_id_t childPid : root.getChildrenProcIds()) {
+        ProcessData& childNode = map[childPid];
+        if (!childNode.getChildrenProcIds().isEmpty()) {
+            removeAllChildrenOf(map, childNode);
         }
     }
-    qInfo() << "BR" << N - 1;
-    beginRemoveRows(pidToIndex(root.getPID()), 0, std::max(0, N - 1));
+    beginRemoveRows(pidToIndex(root.getPID()), 0, N - 1);
     root.clearChildren();
     endRemoveRows();
-    qInfo() << "ER" << N - 1;
 }
 
 void IProcessItemModel::addAllAsChildrenOf(
@@ -193,36 +180,21 @@ void IProcessItemModel::addAllAsChildrenOf(
     QHash<proc_id_t, ProcessData>& mapAfter,
     QSet<proc_id_t> const& newChildProcIds
 ) {
-    if (newChildProcIds.isEmpty())
+    int const N = newChildProcIds.size();
+    if (N == 0) {
         return;
+    }
+    int const base = root.getChildrenProcIds().size();
 
-    int base = root.getChildrenProcIds().size();
-    int N = newChildProcIds.size();
+    beginInsertRows(pidToIndex(root.getPID()), base, base + N - 1);
     for (proc_id_t pid : newChildProcIds) {
-        if (!mapAfter.contains(pid) || root.hasChildProcId(pid)) {
-            --N;
-        }
+        mapBefore.insert(pid, mapAfter[pid]);
+        mapBefore[pid].clearChildren();
+        root.addChildProcId(pid);
     }
-
-    if (N > 0) {
-        qInfo() << "BIR" << base << base + N;
-        beginInsertRows(pidToIndex(root.getPID()), base, base + N - 1);
-        for (proc_id_t pid : newChildProcIds) {
-            if (!mapAfter.contains(pid)) {
-                continue;
-            }
-            mapBefore[pid] = mapAfter[pid];
-            mapBefore[pid].clearChildren();
-            root.addChildProcId(pid);
-        }
-        endInsertRows();
-        qInfo() << "EIR" << base << base + N;
-    }
+    endInsertRows();
 
     for (proc_id_t pid : newChildProcIds) {
-        if (!mapBefore.contains(pid) || !mapAfter.contains(pid)) {
-            continue;
-        }
         addAllAsChildrenOf(mapBefore, mapBefore[pid], mapAfter, mapAfter[pid].getChildrenProcIdSet());
     }
 }
@@ -231,8 +203,8 @@ void IProcessItemModel::diffAndMigrate(QHash<proc_id_t, ProcessData>& mapBefore,
     QSet<proc_id_t> const& childrenRootBefore = rootBefore.getChildrenProcIdSet();
     QSet<proc_id_t> const& childrenRootAfter = rootAfter.getChildrenProcIdSet();
 
-    QSet<proc_id_t> pidsToAdd = childrenRootBefore - childrenRootAfter;
-    QSet<proc_id_t> pidsToRemove = childrenRootAfter - childrenRootBefore;
+    QSet<proc_id_t> pidsToAdd = childrenRootAfter - childrenRootBefore;
+    QSet<proc_id_t> pidsToRemove = childrenRootBefore - childrenRootAfter;
     QSet<proc_id_t> pidsToModify{childrenRootBefore};
     pidsToModify.intersect(childrenRootAfter);
 
@@ -240,13 +212,10 @@ void IProcessItemModel::diffAndMigrate(QHash<proc_id_t, ProcessData>& mapBefore,
         proc_id_t pid = *it;
         // Edge case:
         // If ppid changes then we actually need to remove and add it again!
-        if (!mapBefore.contains(pid) || !mapAfter.contains(pid)) {
-            throw std::runtime_error{"this should never happen"};
-        }
         ProcessData& rowBefore = mapBefore[pid];
-        ProcessData& rowAfter = mapAfter[pid];
+        ProcessData const& rowAfter = mapAfter[pid];
         if (rowAfter.getPPID() != rowBefore.getPPID()) {
-            pidsToModify.erase(it);
+            it = pidsToModify.erase(it);
             pidsToRemove.insert(pid);
             pidsToAdd.insert(pid);
         } else {
@@ -256,19 +225,12 @@ void IProcessItemModel::diffAndMigrate(QHash<proc_id_t, ProcessData>& mapBefore,
 
     // 1. REMOVE
     for (proc_id_t pid : pidsToRemove) {
-        if (!mapBefore.contains(pid)) {
-            continue;
-        }
         ProcessData& rowToRemove = mapBefore[pid];
         removeAllChildrenOf(mapBefore, rowToRemove);
         int positionOfPidToRemove = rootBefore.getChildrenProcIds().indexOf(pid);
-        if (positionOfPidToRemove >= 0) {
-            qInfo() << "BR2" << positionOfPidToRemove;
-            beginRemoveRows(pidToIndex(rootBefore.getPID()), positionOfPidToRemove, positionOfPidToRemove);
-            rowToRemove.removeChildProcId(pid);
-            endRemoveRows();
-            qInfo() << "ER2" << positionOfPidToRemove;
-        }
+        beginRemoveRows(pidToIndex(rootBefore.getPID()), positionOfPidToRemove, positionOfPidToRemove);
+        rootBefore.removeChildProcId(pid);
+        endRemoveRows();
     }
 
     // 2. ADD
@@ -276,9 +238,6 @@ void IProcessItemModel::diffAndMigrate(QHash<proc_id_t, ProcessData>& mapBefore,
 
     // 3. MODIFY
     for (proc_id_t pid : pidsToModify) {
-        if (!mapBefore.contains(pid) || !mapAfter.contains(pid)) {
-            throw std::runtime_error{QString("modified pid (%1) appear neither in mapBefore nor mapAfter - this should never happen").arg(pid).toStdString()};
-        }
         diffAndMigrate(mapBefore, mapBefore[pid], mapAfter, mapAfter[pid]);
     }
 }
@@ -291,152 +250,15 @@ void IProcessItemModel::rebuildTreeOnUI(QHash<proc_id_t, ProcessData> newMap, pr
     proc_id_t const imaginaryRootPid = getImaginaryRootProcId();
 
     if (!m_pidToProcessDataMap.contains(imaginaryRootPid)) {
-        // Rebuild entirely, since even the root is not there !beginResetModel();
+        // Rebuild entirely, since even the root is not there!
         beginResetModel();
         m_pidToProcessDataMap.clear();
         m_pidToProcessDataMap = newMap;
-        // ProcessData proc;
-        // proc.setPPID(getImaginaryRootProcId());
-        // proc.setPID(getImaginaryRootProcId());
-        // proc.setFieldValue(1, "Root");
-        // m_pidToProcessDataMap.insert(proc.getPID(), proc);
-        //
-        // proc.setPPID(getImaginaryRootProcId());
-        // proc.setPID(1);
-        // proc.setFieldValue(1, "HELLO");
-        // m_pidToProcessDataMap.insert(proc.getPID(), proc);
-        //
-        // proc.setPID(2);
-        // proc.setFieldValue(1, "GOOD BYE");
-        // m_pidToProcessDataMap.insert(proc.getPID(), proc);
-        //
-        // proc.setPPID(2);
-        // proc.setPID(3);
-        // proc.setFieldValue(1, "Child");
-        // m_pidToProcessDataMap.insert(proc.getPID(), proc);
-        //
-        // m_pidToProcessDataMap[getImaginaryRootProcId()].addChildProcId(1);
-        // m_pidToProcessDataMap[getImaginaryRootProcId()].addChildProcId(2);
-        // m_pidToProcessDataMap[2].addChildProcId(3);
         endResetModel();
     } else {
         diffAndMigrate(m_pidToProcessDataMap, m_pidToProcessDataMap[imaginaryRootPid], newMap, newMap[imaginaryRootPid]);
-        emit rebuildTreeComplete(numProcs);
     }
-
-    // Step 1: Remove missing items
-    // for (proc_id_t pid : removedPids) {
-    //     if (!m_pidToProcessDataMap.contains(pid)) {
-    //         continue;
-    //     }
-    //     proc_id_t ppid = m_pidToProcessDataMap[pid].getPPID();
-    //     if (m_pidToProcessDataMap.contains(ppid)) {
-    //         ProcessData& parentProcessData = m_pidToProcessDataMap[ppid];
-    //         const auto& siblings = parentProcessData.getChildrenProcIds();
-    //         int row = siblings.indexOf(pid);
-
-    //         if (row >= 0) {
-    //             QModelIndex parentIndex = pidToIndex(ppid); // your helper
-    //             qInfo() << "BIR 0" << parentIndex.internalId() << row;
-    //             beginRemoveRows(parentIndex, row, row);
-    //             parentProcessData.removeChildProcId(pid);
-    //             endRemoveRows();
-    //         }
-    //     }
-    //     m_pidToProcessDataMap.remove(pid);
-    // }
-
-    // m_pidToProcessDataMap[imaginaryRootPid] = newMap[imaginaryRootPid];
-
-    // // Step 2: Add new items
-    // for (proc_id_t pid : addedPids) {
-    //     proc_id_t ppid = newMap[pid].getPPID(); // always in newMap since addedPids = newPids - oldPids
-
-    //     if (!m_pidToProcessDataMap.contains(ppid)) {
-    //         m_pidToProcessDataMap.insert(ppid, newMap[ppid]);
-    //     }
-
-    //     ProcessData& parent = m_pidToProcessDataMap[ppid];
-    //     int insertRow = parent.getChildrenProcIds().size(); // insert at end
-
-    //     QModelIndex parentIndex = pidToIndex(ppid);
-    //     qInfo() << "BIR 1" << parentIndex.internalId() << insertRow << parentIndex.isValid();
-    //     beginInsertRows(parentIndex, insertRow, insertRow);
-    //     parent.addChildProcId(pid);
-    //     m_pidToProcessDataMap.insert(pid, newMap[pid]);
-    //     endInsertRows();
-    // }
-
-    // // Step 3: Modify updated items
-    // for (proc_id_t pid : newPids) {
-    //     if (!addedPids.contains(pid)) {
-    //         proc_id_t oldPPID = m_pidToProcessDataMap[pid].getPPID();
-    //         proc_id_t newPPID = newMap[pid].getPPID();
-    //         if (oldPPID != newPPID) {
-    //             // change parent => remove and add again!
-    //             // Simulate remove from old parent
-    //             int oldRow = m_pidToProcessDataMap[oldPPID].getChildrenProcIds().indexOf(pid);
-    //             if (oldRow >= 0) {
-    //                 beginRemoveRows(pidToIndex(oldPPID), oldRow, oldRow);
-    //                 m_pidToProcessDataMap[oldPPID].removeChildProcId(pid);
-    //                 endRemoveRows();
-    //             }
-
-    //             // Simulate insert to new parent
-    //             if (!m_pidToProcessDataMap.contains(newPPID)) {
-    //                 m_pidToProcessDataMap.insert(newPPID, newMap[newPPID]);
-    //             }
-    //             int newRow = m_pidToProcessDataMap[newPPID].getChildrenProcIds().size();
-    //             qInfo() << "BIR 2" << pidToIndex(newPPID).internalId() << newRow;
-    //             beginInsertRows(pidToIndex(newPPID), newRow, newRow);
-    //             m_pidToProcessDataMap[newPPID].addChildProcId(pid);
-    //             endInsertRows();
-    //             m_pidToProcessDataMap[pid] = newMap[pid];
-    //         } else {
-    //             // Always assuming the row has changed
-    //             // (since it'd be inefficient to compare to know which is changed and which is not)
-    //             m_pidToProcessDataMap[pid] = newMap[pid];
-    //             QModelIndex changedIndex = pidToIndex(pid);
-    //             emit dataChanged(
-    //                 changedIndex.siblingAtColumn(0),
-    //                 changedIndex.siblingAtColumn(columnCount() - 1)
-    //             );
-    //         }
-    //     }
-    // }
-
-    // // Optional Step 4: Cleanup leftover dummy parents
-    // QList<proc_id_t> staleDummies;
-    // for (auto it = m_pidToProcessDataMap.begin(); it != m_pidToProcessDataMap.end(); ++it) {
-    //     proc_id_t pid = it.key();
-    //     if (pid == imaginaryRootPid)
-    //         continue;
-
-    //     const ProcessData& proc = it.value();
-    //     bool neverUpdated = !newMap.contains(pid);
-    //     bool hasNoChildren = proc.getChildrenProcIds().isEmpty();
-
-    //     if (neverUpdated && hasNoChildren) {
-    //         staleDummies.append(pid);
-    //     }
-    // }
-    // // Actually remove them
-    // for (proc_id_t pid : staleDummies) {
-    //     proc_id_t ppid = m_pidToProcessDataMap[pid].getPPID();
-
-    //     if (m_pidToProcessDataMap.contains(ppid)) {
-    //         ProcessData& parent = m_pidToProcessDataMap[ppid];
-    //         int row = parent.getChildrenProcIds().indexOf(pid);
-    //         if (row >= 0) {
-    //             QModelIndex parentIndex = pidToIndex(ppid);
-    //             beginRemoveRows(parentIndex, row, row);
-    //             parent.removeChildProcId(pid);
-    //             endRemoveRows();
-    //         }
-    //     }
-
-    //     m_pidToProcessDataMap.remove(pid);
-    // }
+    emit rebuildTreeComplete(numProcs);
 }
 
 void IProcessItemModel::collectTree() {
@@ -465,25 +287,12 @@ void IProcessItemModel::collectTree() {
 
     QHash<proc_id_t, ProcessData> newMap;
 
-    ProcessData root;
-    root.setPID(imaginaryRootPid);
-    root.setPPID(imaginaryRootPid);
-    root.clearChildren();
-    newMap.insert(imaginaryRootPid, root);
-
     proc_count_t N = 0;
     ProcessData proc;
 
     while (getNext(proc)) {
-        ++N;
         proc_id_t pid = proc.getPID();
         proc_id_t ppid = proc.getPPID();
-
-        // Defensive sanity check (skip pathological entry)
-        if (pid != imaginaryRootPid && pid == ppid) {
-            qWarning() << "process " << pid << " has itself as parent, skipping";
-            continue;
-        }
 
         bool ok;
         validateIds(pid, ppid, ok);
@@ -491,16 +300,33 @@ void IProcessItemModel::collectTree() {
             continue;
         }
 
+        // Defensive sanity check (skip pathological entry)
+        if (pid != imaginaryRootPid && pid == ppid) {
+            qWarning() << "process " << pid << " has itself as parent, skipping";
+            continue;
+        }
+
+        ++N;
+
+        proc.setPID(pid);
+        proc.setPPID(ppid);
+
+        if (!newMap.contains(pid)) {
+            newMap.insert(pid, proc);
+        } else {
+            newMap[pid].update(proc);
+            qInfo() << pid << newMap[pid].getPID() << newMap[pid].getChildrenProcIds() << proc.getChildrenProcIds();
+        }
+
         if (!newMap.contains(ppid)) {
             ProcessData dummyParent;
             dummyParent.setPID(ppid);
             dummyParent.setPPID(imaginaryRootPid);
-            dummyParent.clearChildren();
+            dummyParent.addChildProcId(pid);
             newMap.insert(ppid, dummyParent);
+        } else {
+            newMap[ppid].addChildProcId(pid);
         }
-
-        newMap[pid] = proc;
-        newMap[ppid].addChildProcId(pid);
     }
 
     emit collectTreeComplete(newMap, N);

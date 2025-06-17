@@ -9,6 +9,7 @@ extern "C" {
 
     typedef int64_t proc_id_t;
     typedef proc_id_t proc_count_t;
+    typedef uint64_t field_mask_t;
 
 #ifdef __cplusplus
 } // extern "C"

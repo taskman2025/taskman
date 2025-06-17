@@ -3,8 +3,7 @@
 
 #include <cstdint>
 #include <QString>
-
-using field_mask_t = uint64_t;
+#include "taskman/common/types.h"
 
 struct ProcessField {
     QString name;
