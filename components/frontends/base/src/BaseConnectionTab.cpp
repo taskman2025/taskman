@@ -259,6 +259,10 @@ void BaseConnectionTab::onReplyProcessFiltering(
     QSet<proc_id_t> filteredPidSet
 ) {
     qDebug() << "Here" << filteredPidSet.size();
+    for (auto it = errors.cbegin(); it != errors.cend(); ++it) {
+        auto const& e = it.value();
+        appendLog(QString("Filter error, type = %1, message = %2").arg(static_cast<int>(e.first)).arg(e.second), Qt::red);
+    }
     m_proxyModel->updateFilters(filteredPidSet);
 }
 void BaseConnectionTab::onReplyProcessFilteringError(ConnectionError e) {
